@@ -2,6 +2,14 @@
 
 **New product direction:** transform long walking footage into short 9:16 person-following clips, with a human-in-the-loop picker before export. Prototype code is separate from the current production downloader; it does **not** yet run on the public iPhone GoonHub site.
 
+## Real-source test — 2 November 2026
+
+Attempted to process the exact user-provided video `https://youtu.be/TfNJMZBIbsI` using GitHub Actions on a hosted Ubuntu runner, with yt-dlp 2026.10.26 and an initial 90-second sample. **The source could not be retrieved.** YouTube returned `Sign in to confirm you’re not a bot` during extraction. No original frames were decoded, no real person tracks were created, and no portrait highlights from this video exist. Code checks passed, but the real-video pipeline was **blocked at ingestion**, not evaluated.
+
+- [Failed actual-video test and extraction log](https://github.com/jb0207813-cyber/goonhub/actions/runs/41439431187)
+- [Isolated experimental pull request](https://github.com/jb0207813-cyber/goonhub/pull/1)
+- To evaluate the actual model rather than simulate it, provide a source MP4 or an authorized short video excerpt. Avoid uploading session cookies or credentials.
+
 ## What this prototype does
 
 - Accepts a local video, or a supported public YouTube link if yt-dlp can access it and you have permission to save it.
