@@ -118,3 +118,16 @@ def test_analyze_failure_includes_safe_diagnostic_code(monkeypatch):
     assert len(detail["reference"]) == 8
     assert "secret-test" not in response.text
     assert "private, unavailable" not in response.text
+
+
+def test_instagram_audience_restriction_is_distinct_from_private_post():
+    exc = RuntimeError(
+        "ERROR: [Instagram] DeKJCWeBkOO: This content isn't available to everyone: "
+        "It can't be seen by certain audiences."
+    )
+    status, detail = m.classify_extraction_error(exc, "instagram")
+    assert status == 403
+    assert detail["code"] == "AUDIENCE_RESTRICTED"
+    assert "private" not in detail["message"].lower()
+    assert "signed in" in detail["hint"]
+    assert "DeKJCWeBkOO" not in str(detail)
