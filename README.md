@@ -1,6 +1,6 @@
 # GoonHub
 
-Private, installable iPhone-first bookmark feed and discovery launchpad.
+> **Redesign planned (2026-11-02):** GoonHub is pivoting to an X-inspired, iPhone-first X/Instagram/Facebook media downloader **without a login or encrypted vault**. Read the [full product and UI/UX design specification](docs/DESIGN_SPEC.md). The live app is still the **older v0.2 prototype**; this commit documents the new direction and does **not** implement the redesign yet.\n\nPrivate, installable iPhone-first bookmark feed and discovery launchpad.
 
 This repo is the source code only. Saved links stay encrypted in your browser's local storage; no saved content or passwords are committed.
 
