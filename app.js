@@ -30,6 +30,19 @@ let route='home',analysis=null,chosen=0,controller=null,api=localStorage.getItem
 let toastTimer=null;function toast(message){const box=$('toast');box.textContent=message;box.classList.remove('hidden');clearTimeout(toastTimer);toastTimer=setTimeout(()=>box.classList.add('hidden'),3200)}
 function error(message){$('inlineError').textContent=message;$('inlineError').classList.remove('hidden')}
 function clearError(){$('inlineError').classList.add('hidden');$('inlineError').textContent=''}
+function explainApiFailure(body, fallback){
+ const detail=body?.detail;
+ if(typeof detail==='string')return detail;
+ if(detail && typeof detail==='object'){
+   const message=typeof detail.message==='string'?detail.message:fallback;
+   const hint=typeof detail.hint==='string'?detail.hint:'';
+   const code=typeof detail.code==='string'?detail.code:'EXTRACTION_FAILED';
+   const reference=typeof detail.reference==='string'?' · Ref '+detail.reference:'';
+   return [message,hint,'Error: '+code+reference].filter(Boolean).join('\n\n');
+ }
+ return fallback;
+}
+
 function show(routeName){route=routeName;for(const item of document.querySelectorAll('[data-route]')){item.classList.toggle('active',item.dataset.route===route);item.classList.toggle('selected',item.dataset.route===route)}$('homeScreen').classList.toggle('hidden',route!=='home');$('activityScreen').classList.toggle('hidden',route!=='activity');$('pageTitle').textContent=route==='home'?'Home':'Activity';if(route==='activity')drawActivity();window.scrollTo({top:0,behavior:'instant'})}
 for(const item of document.querySelectorAll('[data-route]'))item.addEventListener('click',()=>show(item.dataset.route));
 function settings(open){$('settingsOverlay').classList.toggle('hidden',!open);if(open){$('apiBase').value=api;connectionText();setTimeout(()=>$('apiBase').focus(),80)}}
@@ -51,7 +64,7 @@ function drawPreview(){const container=$('results');container.replaceChildren();
  const actions=node('div','post-action');const dl=button('','primary-button',()=>startDownload([current.index]));dl.append(icon('download'),node('span','', 'Download '+(current.kind==='image'?'photo':'video')));actions.append(dl);if(list.length>1){const all=button('','text-action',()=>startDownload(list.map(x=>x.index)));all.append(icon('download'),node('span','', 'Download all'));actions.append(all)}card.append(actions);container.append(card);
 }
 async function analyze(){clearError();const url=$('postUrl').value.trim(),source=detectPlatform(url);if(!source){error('Paste a public post URL from X, Instagram or Facebook.');return}if(!api){error('The download backend is not connected. Open Settings and add your server address.');return}
- controller=new AbortController();showSpinner(true);$('results').classList.add('hidden');$('homeEmpty').classList.add('hidden');try{const r=await fetch(api+'/api/v1/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url}),signal:controller.signal});const body=await r.json();if(!r.ok)throw Error(body.detail||'Could not analyze this post.');analysis=body;chosen=0;drawPreview()}catch(e){analysis=null;$('homeEmpty').classList.remove('hidden');if(e.name!=='AbortError')error(e.message||'Unable to find media. Try again.')}finally{controller=null;showSpinner(false)}}
+ controller=new AbortController();showSpinner(true);$('results').classList.add('hidden');$('homeEmpty').classList.add('hidden');try{const r=await fetch(api+'/api/v1/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url}),signal:controller.signal});const body=await r.json();if(!r.ok)throw Error(explainApiFailure(body,'Could not analyze this post.'));analysis=body;chosen=0;drawPreview()}catch(e){analysis=null;$('homeEmpty').classList.remove('hidden');if(e.name!=='AbortError')error(e.message||'Unable to find media. Try again.')}finally{controller=null;showSpinner(false)}}
 $('analyzeBtn').addEventListener('click',analyze);$('postUrl').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();analyze()}});$('abortAnalyze').addEventListener('click',()=>{controller?.abort();showSpinner(false);$('homeEmpty').classList.remove('hidden')});
 async function startDownload(indices){if(!api||!analysis)return;clearError();try{const r=await fetch(api+'/api/v1/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({analysis_id:analysis.analysis_id,media_indices:indices})});const data=await r.json();if(!r.ok)throw Error(data.detail||'Could not start download');jobs.unshift({...data,source:analysis.platform,title:analysis.creator||platformName(analysis.platform)+' post'});toast('Download started');show('activity');poll(data.id)}catch(e){error(e.message||'Download failed');toast('Could not start download')}}
 async function poll(id){if(timers.has(id))return;const tick=async()=>{const job=jobs.find(x=>x.id===id);if(!job){clearInterval(timers.get(id));timers.delete(id);return}try{const r=await fetch(api+'/api/v1/jobs/'+encodeURIComponent(id),{cache:'no-store'});if(!r.ok)throw Error();const d=await r.json();Object.assign(job,d);if(route==='activity')drawActivity();if(['ready','error','cancelled'].includes(job.status)){clearInterval(timers.get(id));timers.delete(id);if(job.status==='ready')toast('File ready — tap Download file')}}catch{job.status='error';job.message='Connection to backend was lost';clearInterval(timers.get(id));timers.delete(id);drawActivity()}};await tick();if(!jobs.find(x=>x.id===id)||['ready','error','cancelled'].includes(jobs.find(x=>x.id===id).status))return;timers.set(id,setInterval(tick,1300))}
