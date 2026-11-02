@@ -1,0 +1,67 @@
+name: Smart Clips real YouTube sample
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'smart-clips/**'
+      - '.github/workflows/smart-clips-sample.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install ffmpeg and extraction dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          python -m pip install -U "yt-dlp[default]"
+      - name: Fetch sample from the user's YouTube link
+        id: fetch
+        shell: bash
+        run: |
+          mkdir -p youtube-test
+          python -m yt_dlp --version
+          set -o pipefail
+          python -m yt_dlp --no-playlist --js-runtimes node --download-sections "*00:00:00-00:01:30" \
+            --merge-output-format mp4 \
+            -f "bv*[height<=1440]+ba/b[height<=1440]/best" \
+            -o "youtube-test/source.%(ext)s" \
+            "https://www.youtube.com/watch?v=TfNJMZBIbsI" 2>&1 | tee youtube-test/extraction.log
+          find youtube-test -maxdepth 1 -type f -printf '%f (%s bytes)\n'
+      - name: Install pose and tracking dependencies
+        if: steps.fetch.outcome == 'success'
+        run: |
+          python -m pip install -r smart-clips/requirements.txt
+      - name: Run person tracking and export portrait highlight
+        if: steps.fetch.outcome == 'success'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          source_video=$(find youtube-test -maxdepth 1 -type f \( -name '*.mp4' -o -name '*.webm' -o -name '*.mkv' \) | head -1)
+          test -n "$source_video"
+          cd smart-clips
+          python -m clip_engine.cli "../$source_video" --clips 1 --sample-fps 2 --output-height 1080 --output ../youtube-test/highlights \
+            2>&1 | tee ../youtube-test/analysis.log
+          find ../youtube-test/highlights -maxdepth 1 -type f -printf '%f (%s bytes)\n'
+      - name: Upload actual result and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: goonhub-youtube-TfNJMZBIbsI
+          path: |
+            youtube-test/extraction.log
+            youtube-test/analysis.log
+            youtube-test/highlights/highlights.json
+            youtube-test/highlights/*.mp4
+          if-no-files-found: warn
+          retention-days: 3
