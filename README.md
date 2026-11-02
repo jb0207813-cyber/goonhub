@@ -73,3 +73,24 @@ No GoonHub user account or social platform credentials. The backend receives sub
 - Deploy the FastAPI backend behind HTTPS; set limits and egress firewall rules.
 - Run a physical iPhone Safari and Home Screen PWA playback/download test, especially confirming merged audio.
 - Add an optional native iOS shortcut later if useful.
+
+### Troubleshooting extraction errors
+
+The API returns a short **error code**, explanation, and diagnostic **reference** instead of claiming every failure is a private/deleted post. The frontend displays those details in the red error area. Common codes:
+
+| Code | What it tells us |
+|---|---|
+| GUEST_ACCESS_FAILED | Anonymous guest-token access was blocked or did not work |
+| SENSITIVE_LOGIN_REQUIRED | The platform requires a signed-in session to access the media |
+| LOGIN_REQUIRED | The platform requires authentication for this content |
+| UPSTREAM_RATE_LIMIT | The social platform is throttling our server |
+| UPSTREAM_ACCESS_DENIED | The upstream returned access denied / HTTP 403 |
+| EXTRACTOR_INCOMPATIBLE | yt-dlp couldn't interpret the platform response |
+| UPSTREAM_NETWORK_ERROR | Render could not complete the upstream network request |
+| EXTRACTION_FAILED | Unrecognized error; share its reference for investigation |
+| NO_MEDIA | Link was analyzed but no extractable media was exposed |
+
+For failures, open **Render → goonhub-api-jb0207813 → Logs** and locate the line beginning \`Extraction failed:\` with the matching \`reference=\` value. Logs contain the failure code and exception *type*, not raw URLs, account cookies, or full upstream exception messages. The code identifies a failure category, **not proof of a post's privacy status**.
+
+**Important:** Some public X posts still require a signed-in browser session for media requests, especially sensitive content. This backend intentionally does not request or store personal account credentials/cookies; clear diagnostics cannot remove that upstream access restriction. Full end-to-end extraction on Render still needs real URL testing.
+
