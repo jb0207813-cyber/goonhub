@@ -80,3 +80,41 @@ def test_audio_probe_when_source_has_audio(monkeypatch, tmp_path):
     assert not m.source_has_audio({"formats": [{"acodec": "none"}]})
     assert not m.source_has_audio({})
     assert m.probe(tmp_path / "missing.mp4") == (False, False)
+
+def test_extractor_error_categories_do_not_assume_private():
+    cases = [
+        ("Could not retrieve guest token", 502, "GUEST_ACCESS_FAILED"),
+        ("Rate limit exceeded", 503, "UPSTREAM_RATE_LIMIT"),
+        ("NSFW tweet requires authentication", 403, "SENSITIVE_LOGIN_REQUIRED"),
+        ("This tweet requires login", 403, "LOGIN_REQUIRED"),
+        ("HTTP Error 403: Forbidden", 502, "UPSTREAM_ACCESS_DENIED"),
+        ("Failed to parse JSON from GraphQL", 502, "EXTRACTOR_INCOMPATIBLE"),
+        ("Connection timed out", 504, "UPSTREAM_NETWORK_ERROR"),
+        ("Unexpected extractor exception", 502, "EXTRACTION_FAILED"),
+    ]
+    for raw, status, expected in cases:
+        http_status, detail = m.classify_extraction_error(RuntimeError(raw), "x")
+        assert http_status == status, raw
+        assert detail["code"] == expected
+        assert "private" not in detail["message"].lower()
+    status, detail = m.classify_extraction_error(ValueError("unhandled"), "instagram")
+    assert detail["code"] == "EXTRACTION_FAILED"
+    assert status == 502
+
+
+def test_analyze_failure_includes_safe_diagnostic_code(monkeypatch):
+    monkeypatch.setattr(m, "YoutubeDL", object())
+    monkeypatch.setattr(
+        m, "extractor_info",
+        lambda url: (_ for _ in ()).throw(ValueError("Could not retrieve guest token at https://x.com/secret-test")),
+    )
+    response = client.post(
+        "/api/v1/analyze",
+        json={"url": "https://x.com/test/status/1234567890123456789"},
+    )
+    assert response.status_code == 502, response.text
+    detail = response.json()["detail"]
+    assert detail["code"] == "GUEST_ACCESS_FAILED"
+    assert len(detail["reference"]) == 8
+    assert "secret-test" not in response.text
+    assert "private, unavailable" not in response.text
