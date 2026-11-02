@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
+import logging
 import os
 import re
 import secrets
@@ -32,7 +33,8 @@ except ImportError:  # Unit tests can monkeypatch extraction without yt-dlp inst
     YoutubeDL = None
     DownloadError = Exception
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
+logger = logging.getLogger("goonhub.extractor")
 ALLOWED_HOSTS = {
     "x": {"x.com", "www.x.com", "mobile.x.com", "twitter.com", "www.twitter.com", "mobile.twitter.com"},
     "instagram": {"instagram.com", "www.instagram.com", "m.instagram.com"},
@@ -160,6 +162,83 @@ def health():
             "extractor": YoutubeDL is not None, "ffmpeg": bool(shutil.which("ffmpeg"))}
 
 
+
+def classify_extraction_error(exc: Exception, platform: str) -> tuple[int, dict]:
+    """Identify the *upstream failure*, not the visibility of the user's post.
+
+    Never return or log raw extractor exceptions: they can contain full source URLs,
+    cookie data, or request parameters. Only whitelisted categories leave the server.
+    """
+    problems = [exc, getattr(exc, "__cause__", None), getattr(exc, "__context__", None)]
+    description = " | ".join(str(e) for e in problems if e is not None).lower()
+    name = {"x": "X", "instagram": "Instagram", "facebook": "Facebook"}.get(platform, "The platform")
+
+    cases = [
+        (("guest token", "guest/activate", "guest activation"),
+         502, "GUEST_ACCESS_FAILED",
+         f"{name} did not grant anonymous access to our server.",
+         "This does not mean the post is private. The platform may be blocking guest requests from Render."),
+        (("rate limit", "too many requests", "http error 429", "status code 429", "429 too many"),
+         503, "UPSTREAM_RATE_LIMIT",
+         f"{name} is rate-limiting media requests from the server.",
+         "Try again later. Repeated retries may make the block last longer."),
+        (("nsfw", "sensitive content", "sensitive media", "age-restricted", "age restricted", "age verification"),
+         403, "SENSITIVE_LOGIN_REQUIRED",
+         f"{name} requires a signed-in session to access this media.",
+         "A post can be public but still require login for sensitive or age-restricted media. GoonHub does not request your credentials."),
+        (("login required", "requires authentication", "sign in", "log in", "login to", "use --cookies",
+          "use cookies", "not authorized", "protected tweet", "authentication required", "http error 401"),
+         403, "LOGIN_REQUIRED",
+         f"{name} requires authentication before it will provide this media.",
+         "Being able to see a post in your signed-in browser does not guarantee anonymous server access."),
+        (("http error 403", "403 forbidden", "access denied", "bot detection", "blocked by"),
+         502, "UPSTREAM_ACCESS_DENIED",
+         f"{name} denied the download server's request (HTTP 403).",
+         "This is usually a platform-side access restriction; it does not establish that the post is private."),
+        (("failed to parse json", "jsondecodeerror", "unable to extract", "unable to parse",
+          "could not parse", "graphql", "extractor error", "unexpected response"),
+         502, "EXTRACTOR_INCOMPATIBLE",
+         f"The media extractor could not understand {name}'s response.",
+         "The platform may have changed its API. Updating yt-dlp or its adapter may be necessary."),
+        (("timed out", "timeout", "name resolution", "connection reset", "connection refused",
+          "network is unreachable", "ssl error", "certificate verify"),
+         504, "UPSTREAM_NETWORK_ERROR",
+         f"The server couldn't complete its connection to {name}.",
+         "This is a network or upstream timeout, not a statement about the post's visibility."),
+        (("unsupported url", "no suitable extractor"),
+         422, "UNSUPPORTED_LINK",
+         f"The extractor doesn't recognize this {name} post format.",
+         "Try copying the post's direct URL rather than a feed, profile, or share redirect."),
+        (("not found", "deleted", "http error 404", "tweet unavailable", "post unavailable",
+          "does not exist", "no longer available"),
+         404, "POST_NOT_FOUND",
+         f"{name} reported that the post isn't available to this server.",
+         "It may have been removed, or {name} may be withholding it from anonymous visitors.".replace("{name}", name)),
+        (("geo-restricted", "geo restricted", "not available in your country"),
+         422, "REGION_RESTRICTED",
+         f"{name} reported a regional viewing restriction.",
+         "Access may differ between your device and the server's region."),
+    ]
+    for phrases, status, code, message, hint in cases:
+        if any(s in description for s in phrases):
+            return status, {"code": code, "message": message, "hint": hint}
+    return 502, {
+        "code": "EXTRACTION_FAILED",
+        "message": f"The {name} extractor failed, but the server has not identified why.",
+        "hint": "This is not evidence that the post is private. Please share the diagnostic reference so we can investigate.",
+    }
+
+
+def extraction_error_response(exc: Exception, platform: str) -> HTTPException:
+    status, detail = classify_extraction_error(exc, platform)
+    reference = secrets.token_hex(4)
+    logger.warning(
+        "Extraction failed: platform=%s code=%s reference=%s exception_type=%s",
+        platform, detail["code"], reference, type(exc).__name__,
+    )
+    return HTTPException(status_code=status, detail={**detail, "reference": reference})
+
+
 @app.post("/api/v1/analyze")
 async def analyze(payload: AnalyzeRequest, request: Request):
     cleanup_expired()
@@ -173,12 +252,12 @@ async def analyze(payload: AnalyzeRequest, request: Request):
     try:
         info = await asyncio.wait_for(asyncio.to_thread(extractor_info, url), timeout=35)
     except asyncio.TimeoutError as exc:
-        raise HTTPException(504, "The platform didn't respond in time. Try again.") from exc
+        raise HTTPException(504, detail={"code": "ANALYSIS_TIMEOUT", "message": "The media server timed out during analysis.", "hint": "Try again when the download server and platform are responsive."}) from exc
     except Exception as exc:
-        raise HTTPException(422, "Could not extract this post. It may be private, unavailable, or unsupported.") from exc
+        raise extraction_error_response(exc, platform) from exc
     media = flatten_media(info)
     if not media:
-        raise HTTPException(422, "No downloadable public photos or videos were found in this post")
+        raise HTTPException(422, detail={"code": "NO_MEDIA", "message": "The post was reached, but no downloadable media was found.", "hint": "It may be text-only or use a media format the extractor does not currently support."})
     aid = secrets.token_urlsafe(20)
     result = {"analysis_id": aid, "source_url": url, "platform": platform,
               "creator": str(info.get("uploader") or info.get("channel") or "")[:100] or None,
