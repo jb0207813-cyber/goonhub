@@ -9,6 +9,20 @@
 - **Platforms:** Support is best-effort. X/Instagram/Facebook can restrict individual posts, require authentication or change their extraction mechanisms. No guarantee that every photo, Reel or video is downloadable. Don't enter social account passwords or cookies.
 - **No permanent gallery:** Files are delivered to your device. The temporary backend file is removed after expiration. Activity remains only in the open browser session.
 
+## Deploy the download backend to Render
+
+The repository now has a root `render.yaml` for a **free Render Docker web service** that installs ffmpeg and yt-dlp and exposes the FastAPI server over HTTPS. The backend is **not live until it is deployed**.
+
+1. Click **[Deploy to Render](https://render.com/deploy?repo=https://github.com/jb0207813-cyber/goonhub)**.
+2. Sign in to Render and grant it access to `jb0207813-cyber/goonhub` if prompted.
+3. Review the Blueprint: one Docker web service, **Free** plan, Frankfurt region. Approve the deployment.
+4. Copy the **actual HTTPS service URL** that Render assigns (its hostname can vary). Verify `<actual-url>/api/v1/health` returns `"ok": true`.
+5. Set `DEFAULT_API_ORIGIN` in the root `api-config.js` to that exact origin and push the change; GitHub Pages then auto-connects to it. Until configured, you can use **Settings → Download server** in GoonHub to paste the server URL manually.
+
+**Free-tier constraints:** Render may spin the server down after 15 minutes of inactivity. The first request can take roughly a minute to wake it. On the free tier, large media files may exceed its RAM, bandwidth, or outbound-transfer limits, and suspended deployments stop serving downloads. The default configuration caps completed media to 100 MiB, uses one worker, and deletes temporary files after 10 minutes. This is a hobby/test deployment, not a guaranteed unlimited downloader.
+
+**Privacy:** The publicly available backend is not an authenticated private service. Only submit public content you're permitted to save. Avoid sending private social URLs or session cookies. No X API purchase is required, but upstream platform restrictions remain.
+
 ### Run locally on Arch Linux
 
 Install Python, ffmpeg and pip, then in a virtual environment:
