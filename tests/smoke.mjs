@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {detectPlatform,safeBackend,platformName} from '../lib.js';
+assert.equal(detectPlatform('https://x.com/user/status/123456'), 'x');
+assert.equal(detectPlatform('https://twitter.com/user/status/123456'), 'x');
+assert.equal(detectPlatform('https://www.instagram.com/reel/abc123/'), 'instagram');
+assert.equal(detectPlatform('https://www.facebook.com/watch/?v=123'), 'facebook');
+assert.equal(detectPlatform('https://x.com.attacker.com/user/status/123'), null);
+assert.equal(detectPlatform('https://x.com/home'), null);
+assert.equal(detectPlatform('javascript:alert(1)'), null);
+assert.equal(safeBackend('https://example.com'), 'https://example.com');
+assert.equal(safeBackend('http://127.0.0.1:8000'), 'http://127.0.0.1:8000');
+assert.equal(safeBackend('http://example.com'), null);
+assert.equal(safeBackend('https://user:pass@example.com'), null);
+assert.equal(platformName('instagram'), 'Instagram');
+console.log('Frontend URL validation tests passed');

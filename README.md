@@ -1,22 +1,61 @@
-# GoonHub
+# GoonHub — media downloader
 
-> **Redesign planned (2026-11-02):** GoonHub is pivoting to an X-inspired, iPhone-first X/Instagram/Facebook media downloader **without a login or encrypted vault**. Read the [full product and UI/UX design specification](docs/DESIGN_SPEC.md). The live app is still the **older v0.2 prototype**; this commit documents the new direction and does **not** implement the redesign yet.\n\nPrivate, installable iPhone-first bookmark feed and discovery launchpad.
+**Rebuild v1.0** · X-inspired, mobile-first download application for supported public X, Instagram and Facebook videos/photos. No account, lock screen, gallery, liked-post syncing, FxEmbed or third-party downloader website.
 
-This repo is the source code only. Saved links stay encrypted in your browser's local storage; no saved content or passwords are committed.
+## What works / what requires setup
 
-## Launch
+- **Frontend:** Complete static PWA, media composer, preview, multiple-item selection, session activity, real progress and download links. Live on GitHub Pages after the root files deploy. The interface itself is free to host.
+- **Backend:** Included Python FastAPI service using yt-dlp and FFmpeg for extraction, audio/video merging, validation, ephemeral jobs, expiring file delivery and basic rate limiting. **You must deploy this backend before real downloads work from your iPhone.** GitHub Pages cannot run Python, video extraction or FFmpeg.
+- **Platforms:** Support is best-effort. X/Instagram/Facebook can restrict individual posts, require authentication or change their extraction mechanisms. No guarantee that every photo, Reel or video is downloadable. Don't enter social account passwords or cookies.
+- **No permanent gallery:** Files are delivered to your device. The temporary backend file is removed after expiration. Activity remains only in the open browser session.
 
-Enable GitHub Pages from Settings → Pages → Deploy from branch → `main` / root, then visit `https://jb0207813-cyber.github.io/goonhub/` in Safari and use Add to Home Screen.
+### Run locally on Arch Linux
 
-## Features
+Install Python, ffmpeg and pip, then in a virtual environment:
 
-Encrypted local vault; save/edit/delete/favourite URLs; platform filters; external discovery searches; export/import encrypted backups. This is not a live social network aggregator or unrestricted scraper.
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --host 127.0.0.1 --port 8000
+```
 
+In another terminal:
 
-## X media downloads (v0.2)
+```bash
+python -m http.server 8080
+```
 
-In GoonHub, open **Download**, paste a public `https://x.com/handle/status/123...` link, and choose **Find media**. The app tries the **free, unofficial FxEmbed public metadata service** to list photo/video files. It also provides a direct-media link even if the lookup fails (for example due to browser CORS, rate limiting, X restrictions, or third-party outages). From Safari, open the image/video file, then use the share menu to save to Files or Photos where supported.
+Open `http://localhost:8080/` and the frontend will automatically use `http://127.0.0.1:8000`. For iPhone use, expose the backend on a **proper HTTPS hostname** with a trusted deployment or secure private tunnel and enter its origin (e.g., `https://api.example.com`) under **Settings → Download server**. Avoid exposing an unauthenticated public downloader without network and rate-limit hardening.
 
-**No X API credits or keys are needed.** This is not a guaranteed downloader: private/protected/deleted/age-gated posts can be unavailable, and third-party services may change. The post ID is sent to FxEmbed on lookup, and opening media exposes normal requests to media hosts. Never share account cookies, credentials, or private vault backups with third-party sites. Download only media you have the rights or permission to save.
+### Deploy frontend to GitHub Pages
 
-The **existing encrypted vault format was preserved** by the v0.2 update.
+This repository includes compiled-free HTML/CSS/JavaScript directly at the root; keep Pages set to `main / (root)`. No npm build or GitHub Actions configuration is needed. Home screen: open the GitHub Pages site in Safari, Share → Add to Home Screen.
+
+### Tests
+
+```bash
+node tests/smoke.mjs
+cd backend && python -m pytest tests -q
+```
+
+Unit tests simulate extraction/download. **Live platform downloads and real iPhone audio playback remain unverified until the backend is deployed and actual public test URLs are tested.**
+
+### Architecture
+
+- `index.html`, `styles.css`, `app.js`, `lib.js` — frontend and PWA shell
+- `backend/main.py` — download API with `/api/v1/analyze`, `/api/v1/jobs`, `/api/v1/files`, `/api/v1/health`
+- `backend/Dockerfile` — container image with ffmpeg + yt-dlp
+- `docs/DESIGN_SPEC.md` — product/UX specification for the redesign
+
+### Privacy and limitations
+
+No GoonHub user account or social platform credentials. The backend receives submitted public post URLs, temporarily downloads media and deletes expired jobs. Server administrators can see network requests; never treat publicly exposed instance as private. Frontend stores only the backend origin in localStorage. Existing legacy vault data from the old app is not read, sent or deleted. Download only media you have permission to save. Respect creators' rights and platform terms.
+
+### Roadmap
+
+- Verify platform-specific extraction on real, permitted public posts (including X photo posts).
+- Deploy the FastAPI backend behind HTTPS; set limits and egress firewall rules.
+- Run a physical iPhone Safari and Home Screen PWA playback/download test, especially confirming merged audio.
+- Add an optional native iOS shortcut later if useful.

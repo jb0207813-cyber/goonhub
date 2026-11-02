@@ -1,0 +1,1 @@
+{"name":"goonhub","version":"1.0.0","private":true,"type":"module","scripts":{"test":"node tests/smoke.mjs","check":"node --check app.js && node --check lib.js"}}

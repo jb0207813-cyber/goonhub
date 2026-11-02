@@ -1,5 +1,9 @@
-node_modules/
-.DS_Store
+__pycache__/
+.pytest_cache/
+.venv/
 .env
-*.backup.json
-backups/
+node_modules/
+dist/
+*.pyc
+.DS_Store
+goonhub-backup*.json
