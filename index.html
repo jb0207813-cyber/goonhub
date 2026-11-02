@@ -6,17 +6,32 @@
 <link rel="manifest" href="manifest.webmanifest"><title>GoonHub — private feed</title>
 <style>
 :root{color-scheme:dark;font-family:system-ui,-apple-system,sans-serif}*{box-sizing:border-box}body{background:#090a10;color:#faf9ff;margin:0}button,input,select{font:inherit}button{cursor:pointer;border:0}input,select{background:#171a26;color:white;padding:13px;border:1px solid #33394d;border-radius:12px;width:100%;outline:none}input:focus{border-color:#9982ff}#app{max-width:680px;margin:auto;min-height:100dvh;padding-bottom:90px}header{padding:19px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #272a37;position:sticky;top:0;background:#090a10ed;backdrop-filter:blur(12px);z-index:2}.brand{font-weight:900;letter-spacing:-1px;font-size:23px}.brand i{font-style:normal;color:#ad94ff}main{padding:20px}h1{font-size:30px;margin:6px 0 20px}h2{font-size:18px}p,.muted{color:#a6a8b8}.tabs,.chips,.actions{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.btn,.chips button,.tabs button{padding:10px 15px;background:#1b1d2b;color:#dfe0eb;border-radius:100px}.btn.primary,.tabs .active,.chips .active{background:#8c6bff;color:white}article{border:1px solid #292c3b;border-radius:18px;padding:17px;margin:14px 0;background:#10121d;overflow-wrap:anywhere}article .name{font-weight:750;font-size:18px}article .meta{font-size:12px;color:#9a9caf;margin:9px 0}article a{color:#a994ff;text-decoration:none}article img{max-width:100%;border-radius:10px;margin-top:14px}.actions button{padding:7px 12px;border-radius:10px;background:#222639;color:white}.card{background:#121522;border:1px solid #2b3042;padding:20px;border-radius:20px;margin:14px 0}.row{display:flex;gap:10px;align-items:center}.row>*{flex:1}.form{display:grid;gap:11px}.hidden{display:none!important}.empty{text-align:center;padding:50px 15px;color:#a4a8bb}.bottom{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:space-around;background:#10111bea;border-top:1px solid #333;padding:13px 8px max(15px,env(safe-area-inset-bottom))}.bottom button{background:transparent;color:#f2f1ff}.danger{color:#ff899e}.small{font-size:12px;color:#888ca0}.searchlink{display:block;padding:14px;margin:8px 0;border-radius:12px;background:#1d2131;color:#ddd;text-decoration:none}label{font-size:13px;color:#bbb}#auth{max-width:430px;margin:12vh auto;padding:23px}#notice{position:fixed;top:10px;left:50%;transform:translateX(-50%);background:#342b56;padding:12px 18px;border-radius:12px;z-index:10;max-width:90%;box-shadow:0 5px 30px #000}
+
+.download-note{font-size:12px;color:#a5a5b4;line-height:1.5;margin:15px 0 3px}
+.media-result{border:1px solid #343648;border-radius:13px;padding:13px;margin:12px 0;background:#171928}
+.media-result img{max-width:100%;max-height:340px;object-fit:contain;border-radius:9px;margin:10px 0;display:block}
+.media-result .searchlink{margin-bottom:4px;overflow-wrap:anywhere}
+#download-status{min-height:18px}
+#download-results .searchlink{overflow-wrap:anywhere}
 </style>
 </head>
 <body><div id="notice" class="hidden" role="status"></div>
 <section id="auth"><div class="brand">goonhub<i>.</i></div><h1>Your feed. Your rules.</h1><p>Private bookmarks, encrypted on this device. Pick a passphrase (at least 8 characters). There is no password recovery.</p>
 <form id="authform" class="form"><input id="pass" type="password" placeholder="Passphrase" autocomplete="current-password" minlength="8" required><input id="confirm" type="password" placeholder="Confirm new passphrase" minlength="8"><button class="btn primary" type="submit" id="authsubmit">Create vault</button></form><p id="authmsg" class="danger"></p></section>
 <div id="app" class="hidden"><header><span class="brand">goonhub<i>.</i></span><button class="btn" id="lock">🔒 Lock</button></header>
-<main><h1 id="heading">Discover.</h1><div class="tabs"><button data-tab="discover" class="active">For you</button><button data-tab="vault">My vault</button><button data-tab="settings">Settings</button></div>
+<main><h1 id="heading">Discover.</h1><div class="tabs"><button data-tab="discover" class="active">For you</button><button data-tab="vault">My vault</button><button data-tab="download">Download</button><button data-tab="settings">Settings</button></div>
 <section id="discover"><div class="card"><h2>Discover creators</h2><p>Find public posts on each platform, then copy the link and save it here. Automatic aggregation isn't available yet.</p><input id="query" placeholder="Search term, tag or creator"><div id="searchlinks"></div></div><h2>Your recent saves</h2><div id="recents"></div></section>
 <section id="vault" class="hidden"><div class="card"><h2>Save a link</h2><form id="saveform" class="form"><input id="url" placeholder="https://x.com/… or Instagram/Facebook URL" type="url" required><input id="title" placeholder="Creator or title (optional)"><input id="tags" placeholder="Tags, comma separated (optional)"><input id="image" placeholder="Direct preview image URL (optional)" type="url"><button type="submit" class="btn primary" id="savebtn">Save to vault</button></form></div><input id="filtertext" placeholder="Search your collection"><div class="chips" id="filters"></div><div id="items"></div></section>
+<section id="download" class="hidden">
+<div class="card"><h2>Download X photos &amp; videos</h2>
+<p>Copy a public X post link and paste it here. No paid X API access or login required.</p>
+<form id="downloadform" class="form"><input id="downloadurl" type="url" placeholder="https://x.com/creator/status/123456..." required>
+<button id="findmedia" type="submit" class="btn primary">Find media</button></form>
+<p id="download-status" class="muted" role="status" aria-live="polite"></p><div id="download-results"></div>
+<p class="download-note">Powered by the free, unofficial FxEmbed service. The public post ID is sent to FxEmbed when you look up media. Open a file in Safari, then use Share → Save to Files or touch-and-hold to save photos. Only save media you have permission to keep. Private, deleted, restricted or age-gated posts may be unavailable.</p>
+</div></section>
 <section id="settings" class="hidden"><div class="card"><h2>Backup your vault</h2><p>Exports are encrypted. Store the backup somewhere safe. Import replaces your existing vault; use the backup's passphrase after importing.</p><div class="actions"><button class="btn" id="export">Export encrypted backup</button><label class="btn" for="import">Import backup</label><input id="import" type="file" accept=".json,application/json" class="hidden"></div></div><div class="card"><h2>Privacy</h2><p>Bookmarks are stored encrypted in this browser. Nothing is synced to GitHub or another device. Clearing website data can erase the vault. External discovery links open the original sites.</p></div></section></main>
-<nav class="bottom"><button data-nav="discover">⌂ Discover</button><button data-nav="vault">▣ Vault</button><button data-nav="settings">⚙ Settings</button></nav></div>
+<nav class="bottom"><button data-nav="discover">⌂ Discover</button><button data-nav="vault">▣ Vault</button><button data-nav="download">↓ Download</button><button data-nav="settings">⚙ Settings</button></nav></div>
 <script>
 'use strict';
 const $=id=>document.getElementById(id), STORE='goonhub.encrypted.v1', enc=new TextEncoder(),dec=new TextDecoder();
@@ -32,8 +47,8 @@ function notify(msg){$('notice').textContent=msg;$('notice').classList.remove('h
 function safeUrl(s){try{const u=new URL(s);if(!['https:','http:'].includes(u.protocol)||u.username||u.password)return null;return u.href}catch{return null}}
 function source(url){let h=new URL(url).hostname.toLowerCase();if(h==='x.com'||h==='twitter.com'||h.endsWith('.x.com')||h.endsWith('.twitter.com'))return 'X';if(h==='instagram.com'||h.endsWith('.instagram.com'))return 'Instagram';if(h==='facebook.com'||h.endsWith('.facebook.com')||h==='fb.watch')return 'Facebook';return 'Other'}
 function el(tag,cls,text){const a=document.createElement(tag);if(cls)a.className=cls;if(text!==undefined)a.textContent=text;return a}
-function switchTo(t){view=t;['discover','vault','settings'].forEach(v=>$(v).classList.toggle('hidden',v!==t));document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));$('heading').textContent=({discover:'Discover.',vault:'My vault.',settings:'Settings.'})[t];render();}
-function card(o){const article=el('article');article.append(el('div','name',o.title||source(o.url)+' post'),el('div','meta',source(o.url)+' · '+new Date(o.time).toLocaleDateString()));const a=el('a','',o.url);a.href=o.url;a.target='_blank';a.rel='noopener noreferrer';article.append(a);if(o.image){const img=el('img');img.src=o.image;img.alt='User supplied preview';img.loading='lazy';img.referrerPolicy='no-referrer';img.onerror=()=>img.remove();article.append(img)}if(o.tags?.length)article.append(el('p','small',o.tags.map(t=>'#'+t).join(' ')));const buttons=el('div','actions');for(const [name,fn] of [['♡ '+(o.fav?'Unfavourite':'Favourite'),async()=>{o.fav=!o.fav;await persist();render()}],['Edit',()=>{switchTo('vault');$('url').value=o.url;$('title').value=o.title;$('tags').value=o.tags.join(', ');$('image').value=o.image||'';editing=o.id;$('savebtn').textContent='Update link';window.scrollTo(0,0)}],['Delete',async()=>{if(!confirm('Delete this bookmark?'))return;items=items.filter(x=>x.id!==o.id);await persist();render()}]]){const b=el('button','',name);b.onclick=fn;buttons.append(b)}article.append(buttons);return article}
+function switchTo(t){view=t;['discover','vault','download','settings'].forEach(v=>$(v).classList.toggle('hidden',v!==t));document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));$('heading').textContent=({discover:'Discover.',vault:'My vault.',download:'Download.',settings:'Settings.'})[t];render();}
+function card(o){const article=el('article');article.append(el('div','name',o.title||source(o.url)+' post'),el('div','meta',source(o.url)+' · '+new Date(o.time).toLocaleDateString()));const a=el('a','',o.url);a.href=o.url;a.target='_blank';a.rel='noopener noreferrer';article.append(a);if(o.image){const img=el('img');img.src=o.image;img.alt='User supplied preview';img.loading='lazy';img.referrerPolicy='no-referrer';img.onerror=()=>img.remove();article.append(img)}if(o.tags?.length)article.append(el('p','small',o.tags.map(t=>'#'+t).join(' ')));const buttons=el('div','actions');for(const [name,fn] of [['♡ '+(o.fav?'Unfavourite':'Favourite'),async()=>{o.fav=!o.fav;await persist();render()}],['Edit',()=>{switchTo('vault');$('url').value=o.url;$('title').value=o.title;$('tags').value=o.tags.join(', ');$('image').value=o.image||'';editing=o.id;$('savebtn').textContent='Update link';window.scrollTo(0,0)}],['Delete',async()=>{if(!confirm('Delete this bookmark?'))return;items=items.filter(x=>x.id!==o.id);await persist();render()}]]){const b=el('button','',name);b.onclick=fn;buttons.append(b)}if(source(o.url)==='X'){const media=el('button','','↓ Media');media.onclick=()=>{switchTo('download');$('downloadurl').value=o.url; $('download-status').textContent='Ready to find media from this post.'; $('download-results').replaceChildren();window.scrollTo(0,0)};buttons.append(media)}article.append(buttons);return article}
 function render(){const q=($('filtertext').value||'').trim().toLowerCase(),container=$('items');container.replaceChildren();const arr=items.filter(o=>(platform==='all'||source(o.url)===platform)&&[o.title,o.url,...o.tags].join(' ').toLowerCase().includes(q)).sort((a,b)=>Number(b.fav)-Number(a.fav)||b.time-a.time);if(!arr.length)container.append(el('div','empty','No saved posts yet. Add your first link above.'));else arr.forEach(o=>container.append(card(o)));const recent=$('recents');recent.replaceChildren();items.slice().sort((a,b)=>b.time-a.time).slice(0,3).forEach(o=>recent.append(card(o)));if(!items.length)recent.append(el('p','muted','Your saved posts will appear here.'));const filters=$('filters');filters.replaceChildren();for(const p of ['all','X','Instagram','Facebook','Other']){const b=el('button',p===platform?'active':'',p==='all'?'All':p);b.onclick=()=>{platform=p;render()};filters.append(b)}}
 function searchLinks(){const q=$('query').value.trim(),links=$('searchlinks');links.replaceChildren();for(const [label,url] of [['X','https://x.com/search?q='+encodeURIComponent(q||'fashion')],['Instagram','https://www.instagram.com/explore/tags/'+encodeURIComponent((q||'fashion').replace(/^#/,'').replace(/\s+/g,''))+'/'],['Facebook','https://www.facebook.com/search/top?q='+encodeURIComponent(q||'fashion')]]){const a=el('a','searchlink','Search '+label+' ↗');a.href=url;a.target='_blank';a.rel='noopener noreferrer';links.append(a)}}
 function checkAuth(){const exists=!!saved();$('authsubmit').textContent=exists?'Unlock vault':'Create vault';$('confirm').classList.toggle('hidden',exists);$('confirm').required=!exists;}
@@ -43,6 +58,68 @@ $('export').onclick=()=>{const data=localStorage.getItem(STORE);if(!data)return;
 $('import').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{if(f.size>5e6)throw Error('too large');const data=JSON.parse(await f.text());if(data.version!==1||!data.salt||!data.iv||!data.data)throw Error('invalid format');if(!confirm('Replace your existing vault with this encrypted backup?'))return;localStorage.setItem(STORE,JSON.stringify(data));key=null;items=[];salt=null;$('app').classList.add('hidden');$('auth').classList.remove('hidden');checkAuth();notify('Backup imported; unlock with original passphrase')}catch{notify('Not a valid GoonHub backup')}finally{e.target.value=''}};
 $('lock').onclick=()=>{key=null;items=[];salt=null;$('app').classList.add('hidden');$('auth').classList.remove('hidden');checkAuth()};
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>switchTo(b.dataset.tab));document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>switchTo(b.dataset.nav));$('query').oninput=searchLinks;$('filtertext').oninput=render;
+
+/* X media lookup is best-effort via free FxEmbed, never the paid X API. */
+function parseXPost(input){
+ try{
+  const u=new URL(input.trim());const host=u.hostname.toLowerCase();
+  if(!['x.com','www.x.com','mobile.x.com','twitter.com','www.twitter.com','mobile.twitter.com'].includes(host))return null;
+  const m=u.pathname.match(/^\/([a-zA-Z0-9_]{1,15})\/status\/(\d{5,20})(?:\/|$)/);
+  return m?{handle:m[1],id:m[2]}:null;
+ }catch{return null}
+}
+function safeMediaUrl(value){
+ try{
+  const u=new URL(value);if(u.protocol!=='https:')return null;
+  const host=u.hostname.toLowerCase();
+  return host==='pbs.twimg.com'||host==='video.twimg.com'||host==='ton.twimg.com'||host.endsWith('.twimg.com')||host==='api.fxtwitter.com'?u.href:null;
+ }catch{return null}
+}
+function mediaLink(url,label){
+ const a=el('a','searchlink',label+' ↗');a.href=url;a.target='_blank';a.rel='noopener noreferrer';return a;
+}
+function downloadFallback(post,root){
+ const u='https://d.fixupx.com/'+post.handle+'/status/'+post.id;
+ root.append(el('p','small','Direct-media fallback (opens the first available file):'));
+ root.append(mediaLink(u,'Open the media file'));
+}
+function renderXMedia(data,root){
+ const media=data?.status?.media;if(!media)return 0;const photos=Array.isArray(media.photos)?media.photos:[];
+ const videos=Array.isArray(media.videos)?media.videos:[];let count=0;
+ for(const p of photos){
+  const url=safeMediaUrl(p.url);if(!url)continue;
+  count++;const item=el('div','media-result');item.append(el('strong','', 'Photo '+count));
+  const img=el('img');img.src=url;img.alt='Photo preview';img.loading='lazy';img.referrerPolicy='no-referrer';item.append(img,mediaLink(url,'Open photo to save'));root.append(item);
+ }
+ for(const v of videos){
+  const formats=Array.isArray(v.formats)?v.formats.filter(f=>f.container==='mp4'||/\.mp4(?:\?|$)/i.test(f.url||'')).sort((a,b)=>(b.bitrate||0)-(a.bitrate||0)):[];
+  const url=safeMediaUrl(formats[0]?.url)||safeMediaUrl(v.url);if(!url)continue;
+  count++;const item=el('div','media-result');item.append(el('strong','',v.type==='gif'?'GIF-style video':'Video'));
+  const preview=safeMediaUrl(v.thumbnail_url);
+  if(preview){const img=el('img');img.src=preview;img.alt='Video preview';img.loading='lazy';item.append(img)}
+  item.append(mediaLink(url,'Open MP4 to save'));root.append(item);
+ }
+ return count;
+}
+$('downloadform').onsubmit=async e=>{
+ e.preventDefault();const post=parseXPost($('downloadurl').value),msg=$('download-status'),root=$('download-results'),button=$('findmedia');
+ root.replaceChildren();
+ if(!post){msg.textContent='Paste a valid x.com or twitter.com post URL with /status/ and its ID.';return}
+ downloadFallback(post,root);
+ msg.textContent='Checking available public media…';button.disabled=true;
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+ try{
+  const r=await fetch('https://api.fxtwitter.com/2/status/'+post.id,{signal:controller.signal,cache:'no-store'});
+  if(!r.ok)throw Error('Service temporarily unavailable');
+  const body=await r.json();
+  if(body.code!==200)throw Error('Post not available');
+  const results=el('div'),count=renderXMedia(body,results);
+  if(count){root.prepend(results);msg.textContent='Found '+count+' file'+(count===1?'':'s')+'. Open a file to save it to your iPhone.'}
+  else msg.textContent='No downloadable public media found. You can try the direct-media fallback below.';
+ }catch{msg.textContent='Could not list media (the service, post restrictions, or browser access may be the cause). Try the direct-media link below.'}
+ finally{clearTimeout(timer);button.disabled=false}
+};
+
 checkAuth();searchLinks();
 if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 </script></body></html>
