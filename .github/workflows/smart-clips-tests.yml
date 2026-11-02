@@ -1,0 +1,28 @@
+name: Smart Clips offline tests
+on:
+  push:
+    branches: [smart-clips-v0.1]
+    paths:
+      - 'smart-clips/**'
+      - '.github/workflows/smart-clips-tests.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'smart-clips/**'
+      - '.github/workflows/smart-clips-tests.yml'
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pytest
+      - name: Static compile
+        run: python -m compileall -q smart-clips/clip_engine
+      - name: Run pure tracking and two-pass tests
+        run: PYTHONPATH=smart-clips python -m pytest -q smart-clips/tests/test_engine.py smart-clips/tests/test_two_pass.py
