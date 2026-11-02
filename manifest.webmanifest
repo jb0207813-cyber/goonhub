@@ -1,0 +1,10 @@
+{
+  "name": "GoonHub — Private Feed",
+  "short_name": "GoonHub",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#090a10",
+  "theme_color": "#090a10",
+  "icons": []
+}
