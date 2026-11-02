@@ -1,0 +1,65 @@
+name: Third-party video metadata feasibility check
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/alternate-video-api-check.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check limited public playback metadata endpoints, no media download
+        shell: bash
+        run: |
+          mkdir -p alternate-api
+          python - <<'PY' | tee alternate-api/report.txt
+          import json
+          import urllib.request
+          import urllib.error
+          import time
+          checks=[
+            ("Piped", "https://pipedapi.kavin.rocks/streams/TfNJMZBIbsI"),
+            ("Invidious Nadeko", "https://inv.nadeko.net/api/v1/videos/TfNJMZBIbsI"),
+            ("Invidious NerdVPN", "https://invidious.nerdvpn.de/api/v1/videos/TfNJMZBIbsI"),
+          ]
+          successes = 0
+          for name,url in checks:
+            try:
+              req=urllib.request.Request(url,headers={"User-Agent":"GoonHub-Feasibility-Probe/0.1 (metadata only; 1 request per host)", "Accept":"application/json"})
+              with urllib.request.urlopen(req,timeout=14) as resp:
+                raw=resp.read(400_000)
+                data=json.loads(raw.decode("utf-8"))
+                if not isinstance(data,dict):
+                    raise ValueError("Non-object response")
+                if "error" in data:
+                    raise ValueError(str(data["error"])[:180])
+                video_id=data.get("videoId") or data.get("id") or ""
+                video_formats=data.get("videoStreams") or data.get("adaptiveFormats") or data.get("formatStreams") or []
+                audio_formats=data.get("audioStreams") or []
+                stream_count=sum(bool(item.get("url")) for item in video_formats if isinstance(item,dict))
+                title=str(data.get("title") or "")[:75]
+                if str(video_id) not in ("TfNJMZBIbsI", ""):
+                    raise ValueError("Wrong video metadata returned")
+                ok=bool(stream_count)
+                successes += int(ok)
+                print(json.dumps({"source":name,"metadata":True,"stream_urls":stream_count,"audio_streams":len(audio_formats),"title":title,"usable_candidate":ok}))
+            except Exception as exc:
+              print(json.dumps({"source":name,"metadata":False,"error_type":type(exc).__name__,"message":str(exc)[:150]}))
+            time.sleep(2)
+          print("RESULT:",successes,"sources published direct video stream URLs (NOT tested for playback)")
+          PY
+      - name: Save report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alternate-youtube-api-report
+          path: alternate-api/report.txt
+          retention-days: 3

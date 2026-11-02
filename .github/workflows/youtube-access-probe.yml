@@ -1,0 +1,77 @@
+name: YouTube alternative client access probe
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/youtube-access-probe.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install current yt-dlp and FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          python -m pip install -U "yt-dlp[default]"
+      - name: Test supported playback clients on exact example without login
+        shell: bash
+        run: |
+          mkdir -p alternative-probe
+          url="https://www.youtube.com/watch?v=TfNJMZBIbsI"
+          python -m yt_dlp --version
+          found=0
+          for client in web_embedded android_vr web_safari tv_simply; do
+            echo "::group::Trying official YouTube player client: $client"
+            if timeout 50s python -m yt_dlp --no-playlist --no-cache-dir --js-runtimes node \
+                 --extractor-args "youtube:player_client=$client" -F "$url" \
+                 >"alternative-probe/$client.txt" 2>&1; then
+              echo "Format listing exited successfully for $client"
+              grep -E "Available formats|^ID|^[0-9a-zA-Z_-]+ +.*(mp4|webm|m3u8)" "alternative-probe/$client.txt" | head -12 || true
+              echo "::endgroup::"
+              echo "::group::Testing real 12-second clip retrieval with $client"
+              if timeout 100s python -m yt_dlp --no-playlist --no-cache-dir --js-runtimes node \
+                   --extractor-args "youtube:player_client=$client" \
+                   --download-sections "*00:00:05-00:00:17" --merge-output-format mp4 \
+                   -f 'b[height<=480]/best[height<=480]/best' \
+                   -o 'alternative-probe/sample.%(ext)s' "$url" \
+                   >"alternative-probe/download-$client.txt" 2>&1; then
+                echo "SUCCESS: real video segment retrieved with $client" | tee alternative-probe/result.txt
+                find alternative-probe -maxdepth 1 -type f -name 'sample.*' -printf '%f %s bytes\n'
+                found=1
+                echo "::endgroup::"
+                break
+              else
+                tail -10 "alternative-probe/download-$client.txt"
+              fi
+            else
+              tail -12 "alternative-probe/$client.txt"
+            fi
+            echo "::endgroup::"
+            sleep 3
+          done
+          if [ "$found" -ne 1 ]; then
+            echo 'No tested unauthenticated player client delivered an excerpt.' | tee alternative-probe/result.txt
+          fi
+      - name: Upload proof or reason
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: youtube-alternate-access-report
+          path: |
+            alternative-probe/*.txt
+            alternative-probe/sample.mp4
+            alternative-probe/sample.mkv
+            alternative-probe/sample.webm
+          retention-days: 3
+          if-no-files-found: warn

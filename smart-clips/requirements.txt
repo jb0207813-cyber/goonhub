@@ -1,0 +1,5 @@
+# Prototype: CPU analysis. Install in Python 3.11/3.12 virtualenv.
+numpy>=1.26,<3
+opencv-python-headless>=4.8
+ultralytics>=8.3
+yt-dlp>=2025.1
