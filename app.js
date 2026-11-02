@@ -1,4 +1,5 @@
 import {detectPlatform,safeBackend,safePreview,platformName,statusName,readableBytes} from './lib.js';
+import {DEFAULT_API_ORIGIN} from './api-config.js';
 const $=id=>document.getElementById(id);
 const ICONS={
  home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
@@ -25,7 +26,7 @@ function icon(name){const wrap=document.createElement('span');wrap.className='sv
 for(const node of document.querySelectorAll('[data-icon]'))node.replaceChildren(icon(node.dataset.icon));
 function node(tag,cls,text){const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el}
 function button(label,cls,click){const b=node('button',cls,label);b.type='button';b.addEventListener('click',click);return b}
-let route='home',analysis=null,chosen=0,controller=null,api=localStorage.getItem('goonhub.api')||((location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://127.0.0.1:8000':''),jobs=[],timers=new Map();
+let route='home',analysis=null,chosen=0,controller=null,api=localStorage.getItem('goonhub.api')||((location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://127.0.0.1:8000':safeBackend(DEFAULT_API_ORIGIN)||''),jobs=[],timers=new Map();
 let toastTimer=null;function toast(message){const box=$('toast');box.textContent=message;box.classList.remove('hidden');clearTimeout(toastTimer);toastTimer=setTimeout(()=>box.classList.add('hidden'),3200)}
 function error(message){$('inlineError').textContent=message;$('inlineError').classList.remove('hidden')}
 function clearError(){$('inlineError').classList.add('hidden');$('inlineError').textContent=''}
@@ -34,7 +35,7 @@ for(const item of document.querySelectorAll('[data-route]'))item.addEventListene
 function settings(open){$('settingsOverlay').classList.toggle('hidden',!open);if(open){$('apiBase').value=api;connectionText();setTimeout(()=>$('apiBase').focus(),80)}}
 for(const el of document.querySelectorAll('.settings-trigger'))el.addEventListener('click',()=>settings(true));$('openBackendSettings').addEventListener('click',()=>settings(true));$('closeSettings').addEventListener('click',()=>settings(false));$('settingsOverlay').addEventListener('click',e=>{if(e.target===$('settingsOverlay'))settings(false)});document.addEventListener('keydown',e=>{if(e.key==='Escape')settings(false)});
 function connectionText(ok){const row=$('connectionLabel');row.replaceChildren();const i=node('span','online-indicator'+(ok?' up':''));row.append(i,node('span','',ok===true?'Backend online':ok===false?'Cannot reach backend':api?'Backend not checked':'Not connected'));$('sideStatus').textContent=ok===true?'Backend online':api?'Backend not checked':'Backend not connected';document.querySelector('.sidebar .online-indicator')?.classList.toggle('up',ok===true)}
-async function checkConnection(){if(!api){connectionText();return false}try{const signal=AbortSignal.timeout(4500);const r=await fetch(api+'/api/v1/health',{signal});if(!r.ok)throw Error();const data=await r.json();const ok=!!data.ok;connectionText(ok);return ok}catch{connectionText(false);return false}}
+async function checkConnection(){if(!api){connectionText();return false}try{connectionText();const signal=AbortSignal.timeout(90000);const r=await fetch(api+'/api/v1/health',{signal});if(!r.ok)throw Error();const data=await r.json();const ok=!!data.ok;connectionText(ok);return ok}catch{connectionText(false);return false}}
 $('saveApi').addEventListener('click',async()=>{const input=$('apiBase').value.trim();if(!input){api='';localStorage.removeItem('goonhub.api');connectionText();toast('Backend address cleared');return}const safe=safeBackend(input);if(!safe){toast('Use an HTTPS server URL (HTTP only for localhost)');return}api=safe;localStorage.setItem('goonhub.api',api);toast(await checkConnection()?'Backend connected':'Address saved, but the backend is unreachable')});
 function showSpinner(on){$('analysisState').classList.toggle('hidden',!on);$('analyzeBtn').disabled=on;$('postUrl').disabled=on}
 function updateClear(){$('clearUrl').classList.toggle('hidden',!$('postUrl').value)}$('postUrl').addEventListener('input',()=>{updateClear();clearError()});$('clearUrl').addEventListener('click',()=>{$('postUrl').value='';updateClear();clearError();$('postUrl').focus()});
