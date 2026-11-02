@@ -2,14 +2,6 @@
 
 **New product direction:** transform long walking footage into short 9:16 person-following clips, with a human-in-the-loop picker before export. Prototype code is separate from the current production downloader; it does **not** yet run on the public iPhone GoonHub site.
 
-## Real-source test — 2 November 2026
-
-Attempted to process the exact user-provided video `https://youtu.be/TfNJMZBIbsI` using GitHub Actions on a hosted Ubuntu runner, with yt-dlp 2026.10.26 and an initial 90-second sample. **The source could not be retrieved.** YouTube returned `Sign in to confirm you’re not a bot` during extraction. No original frames were decoded, no real person tracks were created, and no portrait highlights from this video exist. Code checks passed, but the real-video pipeline was **blocked at ingestion**, not evaluated.
-
-- [Failed actual-video test and extraction log](https://github.com/jb0207813-cyber/goonhub/actions/runs/41439431187)
-- [Isolated experimental pull request](https://github.com/jb0207813-cyber/goonhub/pull/1)
-- To evaluate the actual model rather than simulate it, provide a source MP4 or an authorized short video excerpt. Avoid uploading session cookies or credentials.
-
 ## What this prototype does
 
 - Accepts a local video, or a supported public YouTube link if yt-dlp can access it and you have permission to save it.
@@ -61,3 +53,30 @@ Also verified FFmpeg rendering on a generated 1280×720 test source with an audi
 3. User-selected subject anchoring, track continuity, optional vertical composition, and accurate high-resolution rendering.
 4. Dedicated compute host and background job worker with storage quotas, progress UI, expiry, and direct iPhone Files delivery.
 5. Preserve current production downloader until this new pipeline succeeds end-to-end.
+
+## Efficient two-pass prototype (v0.2 experimental)
+
+A new `clip_engine.two_pass` command changes how the first test fetches media:
+
+1. Probe *metadata*, then sample a bounded number of short windows using a low-resolution format (480p or lower). This **does not download the entire 4K file**. Some YouTube transport formats may still transfer more bytes than requested.
+2. Rank candidate person tracks from the sampled windows. These are only *candidate* highlights, not guaranteed coverage of every moment between sampled windows. Sparse scans can miss subjects entirely.
+3. Fetch only the chosen **short excerpts** in the best available quality, translate tracked positions from proxy pixels to source pixels, render 9:16 clips with audio, then delete temporary source/proxy media.
+
+```bash
+python -m clip_engine.two_pass 'https://youtu.be/TfNJMZBIbsI' \
+  --clips 3 --sample-every 240 --scan-seconds 22 --max-windows 12 \
+  --output ./vertical-highlights
+```
+
+Optional, **local device only**, if the site's permissions and your account allow it:
+
+```bash
+python -m clip_engine.two_pass 'https://youtu.be/TfNJMZBIbsI' \
+  --browser-session firefox --output ./vertical-highlights
+```
+
+The Firefox option allows yt-dlp to read an *already signed-in* session on your own computer. The session is **never copied to Render, GitHub, or the website**. It cannot be used when our code runs in GitHub Actions or Render, because those servers cannot access the user's Firefox installation. Signing into GoonHub using Google OAuth would identify the user to GoonHub, not grant yt-dlp a playable/downloadable YouTube media stream; don't add an OAuth button pretending otherwise.
+
+**Observed limitation:** The actual sample `TfNJMZBIbsI` was tested on GitHub Actions on 2 Nov 2026 and failed at YouTube's bot-verification gate before frame analysis. It has not been processed into a real clip. [Actual job and log](https://github.com/jb0207813-cyber/goonhub/actions/runs/41439431187). This new pipeline is built and tested offline with mocked excerpt downloads and tracking; no claim of live source success.
+
+The official YouTube API policies also place restrictions on downloading/storing YouTube audiovisual content; only import source media you have permission to save and transform. Where platform access or rights do not allow extraction, request a user-provided authorized source video rather than bypassing platform controls.
