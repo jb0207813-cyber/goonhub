@@ -1,0 +1,22 @@
+# GoonHub backend — free-tier Render Blueprint
+# The frontend remains on GitHub Pages.
+services:
+  - type: web
+    name: goonhub-api-jb0207813
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeployTrigger: commit
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: GOONHUB_ORIGINS
+        value: https://jb0207813-cyber.github.io,http://localhost:8080,http://127.0.0.1:8080
+      - key: GOONHUB_MAX_BYTES
+        value: "104857600"
+      - key: GOONHUB_TTL_SECONDS
+        value: "600"
+      - key: GOONHUB_CONCURRENCY
+        value: "1"
