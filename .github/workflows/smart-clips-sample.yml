@@ -1,10 +1,5 @@
 name: Smart Clips real YouTube sample
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'smart-clips/**'
-      - '.github/workflows/smart-clips-sample.yml'
   workflow_dispatch:
 permissions:
   contents: read
