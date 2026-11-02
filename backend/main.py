@@ -33,7 +33,7 @@ except ImportError:  # Unit tests can monkeypatch extraction without yt-dlp inst
     YoutubeDL = None
     DownloadError = Exception
 
-APP_VERSION = "1.0.1"
+APP_VERSION = "1.0.2"
 logger = logging.getLogger("goonhub.extractor")
 ALLOWED_HOSTS = {
     "x": {"x.com", "www.x.com", "mobile.x.com", "twitter.com", "www.twitter.com", "mobile.twitter.com"},
@@ -174,6 +174,12 @@ def classify_extraction_error(exc: Exception, platform: str) -> tuple[int, dict]
     name = {"x": "X", "instagram": "Instagram", "facebook": "Facebook"}.get(platform, "The platform")
 
     cases = [
+        (("this content isn't available to everyone", "it can't be seen by certain audiences",
+          "unavailable for certain audiences", "cannot be seen by certain audiences",
+          "isn't available to everyone"),
+         403, "AUDIENCE_RESTRICTED",
+         f"{name} marked this media as unavailable to certain audiences.",
+         "You might still see it while signed in. The server's anonymous request is not eligible to view it. The message does not reveal which audience rule applies."),
         (("guest token", "guest/activate", "guest activation"),
          502, "GUEST_ACCESS_FAILED",
          f"{name} did not grant anonymous access to our server.",
