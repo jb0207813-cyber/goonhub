@@ -81,7 +81,10 @@ function mediaLink(url,label){
 function downloadFallback(post,root){
  const u='https://d.fixupx.com/'+post.handle+'/status/'+post.id;
  root.append(el('p','small','Direct-media fallback (opens the first available file):'));
- root.append(mediaLink(u,'Open the media file'));
+ root.append(mediaLink(u,'Open the first media file'));
+ const extras=el('details');const summary=el('summary','small','More photo links (when a post has multiple photos)');extras.append(summary);
+ for(let i=1;i<=4;i++)extras.append(mediaLink(u+'/photo/'+i,'Try photo '+i));
+ root.append(extras);
 }
 function renderXMedia(data,root){
  const media=data?.status?.media;if(!media)return 0;const photos=Array.isArray(media.photos)?media.photos:[];
