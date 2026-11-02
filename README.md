@@ -80,6 +80,7 @@ The API returns a short **error code**, explanation, and diagnostic **reference*
 
 | Code | What it tells us |
 |---|---|
+| AUDIENCE_RESTRICTED | Instagram reports content unavailable to some audiences; an anonymous server request may be ineligible even when the signed-in user can view it |
 | GUEST_ACCESS_FAILED | Anonymous guest-token access was blocked or did not work |
 | SENSITIVE_LOGIN_REQUIRED | The platform requires a signed-in session to access the media |
 | LOGIN_REQUIRED | The platform requires authentication for this content |
