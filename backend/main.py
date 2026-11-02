@@ -47,8 +47,9 @@ ROOT.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="GoonHub API", version=APP_VERSION, docs_url=None, redoc_url=None)
 app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_methods=["GET", "POST", "DELETE"], allow_headers=["Content-Type"])
-executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="gh-download")
-slots = threading.BoundedSemaphore(3)
+MAX_CONCURRENT_JOBS = max(1, min(2, int(os.getenv("GOONHUB_CONCURRENCY", "1"))))
+executor = ThreadPoolExecutor(max_workers=MAX_CONCURRENT_JOBS, thread_name_prefix="gh-download")
+slots = threading.BoundedSemaphore(MAX_CONCURRENT_JOBS)
 lock = threading.RLock()
 analyses: dict[str, dict] = {}
 jobs: dict[str, dict] = {}
